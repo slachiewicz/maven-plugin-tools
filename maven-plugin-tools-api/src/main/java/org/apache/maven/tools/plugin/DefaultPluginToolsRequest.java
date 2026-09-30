@@ -28,12 +28,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.settings.Settings;
 import org.codehaus.plexus.util.ReaderFactory;
-import org.eclipse.aether.RepositorySystemSession;
 
 /**
  * Default implementation of {@link PluginToolsRequest}, which is used to pass parameters to components used to extract
@@ -49,15 +49,15 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
 
     private PluginDescriptor pluginDescriptor;
 
-    private MavenProject project;
+    private Session session;
+
+    private Project project;
 
     private String encoding = DEFAULT_ENCODING;
 
     private boolean skipErrorNoDescriptorsFound;
 
     private Set<Artifact> dependencies;
-
-    private RepositorySystemSession repoSession;
 
     private URI internalJavadocBaseUrl;
 
@@ -73,9 +73,27 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
 
     private Collection<String> excludedScanDirectories;
 
-    public DefaultPluginToolsRequest(MavenProject project, PluginDescriptor pluginDescriptor) {
+    public DefaultPluginToolsRequest(Session session, Project project, PluginDescriptor pluginDescriptor) {
+        this.session = session;
         this.project = project;
         this.pluginDescriptor = pluginDescriptor;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Session getSession() {
+        return session;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PluginToolsRequest setSession(Session session) {
+        this.session = session;
+        return this;
     }
 
     /**
@@ -99,7 +117,7 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
      * {@inheritDoc}
      */
     @Override
-    public MavenProject getProject() {
+    public Project getProject() {
         return project;
     }
 
@@ -107,7 +125,7 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
      * {@inheritDoc}
      */
     @Override
-    public PluginToolsRequest setProject(MavenProject project) {
+    public PluginToolsRequest setProject(Project project) {
         this.project = project;
         return this;
     }
@@ -166,15 +184,6 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
     }
 
     @Override
-    public RepositorySystemSession getRepoSession() {
-        return repoSession;
-    }
-
-    public void setRepoSession(RepositorySystemSession repoSession) {
-        this.repoSession = repoSession;
-    }
-
-    @Override
     public PluginToolsRequest setInternalJavadocBaseUrl(URI baseUrl) {
         internalJavadocBaseUrl = baseUrl;
         return this;
@@ -215,6 +224,9 @@ public class DefaultPluginToolsRequest implements PluginToolsRequest {
 
     @Override
     public Settings getSettings() {
+        if (settings == null && session != null) {
+            return session.getSettings();
+        }
         return settings;
     }
 

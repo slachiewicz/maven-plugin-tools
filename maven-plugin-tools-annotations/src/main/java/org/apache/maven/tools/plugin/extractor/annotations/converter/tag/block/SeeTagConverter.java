@@ -18,9 +18,8 @@
  */
 package org.apache.maven.tools.plugin.extractor.annotations.converter.tag.block;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.tools.plugin.extractor.annotations.converter.ConverterContext;
 import org.apache.maven.tools.plugin.extractor.annotations.converter.tag.LinkUtils;
 

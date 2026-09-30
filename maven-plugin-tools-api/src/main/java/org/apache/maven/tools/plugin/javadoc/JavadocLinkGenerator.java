@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import org.apache.maven.settings.Settings;
+import org.apache.maven.api.settings.Settings;
 import org.codehaus.plexus.languages.java.version.JavaVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

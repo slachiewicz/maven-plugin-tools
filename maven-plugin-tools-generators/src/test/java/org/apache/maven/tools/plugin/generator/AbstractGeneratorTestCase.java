@@ -21,19 +21,20 @@ package org.apache.maven.tools.plugin.generator;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.maven.model.Build;
 import org.apache.maven.plugin.descriptor.DuplicateParameterException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.Parameter;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugin.logging.SystemStreamLog;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.DefaultPluginToolsRequest;
+import org.apache.maven.tools.plugin.test.ApiTestSupport;
+import org.apache.maven.tools.plugin.test.ApiTestSupport.TestProject;
 import org.codehaus.plexus.component.repository.ComponentDependency;
 import org.codehaus.plexus.util.FileUtils;
 import org.junit.jupiter.api.Disabled;
@@ -96,15 +97,10 @@ public abstract class AbstractGeneratorTestCase {
                 Files.createTempDirectory("testGenerator-outDir").toFile();
         destinationDirectory.mkdir();
 
-        MavenProject mavenProject = new MavenProject();
-        mavenProject.setGroupId("foo");
-        mavenProject.setArtifactId("bar");
-        Build build = new Build();
-        build.setDirectory(basedir + "/target");
-        build.setOutputDirectory(basedir + "/target");
-        mavenProject.setBuild(build);
+        TestProject mavenProject = ApiTestSupport.project(
+                "foo", "bar", "1", Paths.get(basedir), Paths.get(basedir).resolve("target"));
         extendPluginDescriptor(pluginDescriptor);
-        generator.execute(destinationDirectory, new DefaultPluginToolsRequest(mavenProject, pluginDescriptor));
+        generator.execute(destinationDirectory, new DefaultPluginToolsRequest(null, mavenProject, pluginDescriptor));
 
         validate(destinationDirectory, false);
 
@@ -161,15 +157,10 @@ public abstract class AbstractGeneratorTestCase {
                 Files.createTempDirectory("testGenerator-outDir").toFile();
         destinationDirectory.mkdir();
 
-        MavenProject mavenProject = new MavenProject();
-        mavenProject.setGroupId("foo");
-        mavenProject.setArtifactId("bar");
-        Build build = new Build();
-        build.setDirectory(basedir + "/target");
-        build.setOutputDirectory(basedir + "/target");
-        mavenProject.setBuild(build);
+        TestProject mavenProject = ApiTestSupport.project(
+                "foo", "bar", "1", Paths.get(basedir), Paths.get(basedir).resolve("target"));
         extendPluginDescriptor(pluginDescriptor);
-        DefaultPluginToolsRequest request = new DefaultPluginToolsRequest(mavenProject, pluginDescriptor);
+        DefaultPluginToolsRequest request = new DefaultPluginToolsRequest(null, mavenProject, pluginDescriptor);
         pluginDescriptor.setRequiredMavenVersion("4.0.0");
         generator.execute(destinationDirectory, request);
 

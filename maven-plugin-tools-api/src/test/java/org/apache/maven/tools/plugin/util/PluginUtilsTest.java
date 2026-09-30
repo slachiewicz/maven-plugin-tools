@@ -18,14 +18,18 @@
  */
 package org.apache.maven.tools.plugin.util;
 
-import java.util.Collections;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
+import org.apache.maven.api.Session;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.plugin.testing.stubs.MavenProjectStub;
+import org.apache.maven.tools.plugin.test.ApiTestSupport;
+import org.apache.maven.tools.plugin.test.ApiTestSupport.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -69,19 +73,17 @@ class PluginUtilsTest {
 
     @Test
     void isMavenReport() {
-        try {
-            PluginUtils.isMavenReport(null, null);
-        } catch (IllegalArgumentException e) {
-        }
+        assertThrows(IllegalArgumentException.class, () -> PluginUtils.isMavenReport(null, null, null));
 
         String impl = "org.apache.maven.tools.plugin.util.stubs.MavenReportStub";
 
-        MavenProjectStub stub = new MavenProjectStub();
-        stub.setCompileSourceRoots(Collections.singletonList(System.getProperty("basedir") + "/target/classes"));
+        Path basedir = Paths.get(System.getProperty("basedir", "."));
+        TestProject project = ApiTestSupport.project("g", "a", "1", basedir, basedir.resolve("target/classes"));
+        Session session = ApiTestSupport.session(project);
 
-        assertTrue(PluginUtils.isMavenReport(impl, stub));
+        assertTrue(PluginUtils.isMavenReport(impl, session, project));
 
         impl = "org.apache.maven.tools.plugin.util.stubs.MojoStub";
-        assertFalse(PluginUtils.isMavenReport(impl, stub));
+        assertFalse(PluginUtils.isMavenReport(impl, session, project));
     }
 }

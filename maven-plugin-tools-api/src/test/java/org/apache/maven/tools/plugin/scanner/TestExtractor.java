@@ -21,9 +21,10 @@ package org.apache.maven.tools.plugin.scanner;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.DefaultPluginToolsRequest;
 import org.apache.maven.tools.plugin.PluginToolsRequest;
 import org.apache.maven.tools.plugin.extractor.GroupKey;
@@ -50,8 +51,8 @@ public class TestExtractor implements MojoDescriptorExtractor {
         return GROUP_KEY;
     }
 
-    public List<MojoDescriptor> execute(MavenProject project, PluginDescriptor pluginDescriptor) {
-        return execute(new DefaultPluginToolsRequest(project, pluginDescriptor));
+    public List<MojoDescriptor> execute(Session session, Project project, PluginDescriptor pluginDescriptor) {
+        return execute(new DefaultPluginToolsRequest(session, project, pluginDescriptor));
     }
 
     @Override

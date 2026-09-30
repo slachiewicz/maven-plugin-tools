@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,7 +36,7 @@ class DefaultPluginToolsRequestTest {
             Paths.get("project", "target", "generated-sources", "annotations").toAbsolutePath();
 
     private PluginToolsRequest newRequest() {
-        return new DefaultPluginToolsRequest(new MavenProject(), new PluginDescriptor());
+        return new DefaultPluginToolsRequest(null, null, new PluginDescriptor());
     }
 
     @Test

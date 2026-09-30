@@ -26,10 +26,10 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Project;
 import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.VelocityEngine;
 import org.codehaus.plexus.util.io.CachingOutputStream;
-import org.codehaus.plexus.velocity.VelocityComponent;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -49,9 +49,9 @@ public class PluginHelpGenerator {
 
     private String helpPackageName;
     private String goalPrefix;
-    private MavenProject mavenProject;
+    private Project mavenProject;
     private boolean useMaven4Api;
-    private VelocityComponent velocityComponent;
+    private VelocityEngine velocityEngine;
 
     /**
      * Default constructor
@@ -92,8 +92,15 @@ public class PluginHelpGenerator {
         return this;
     }
 
-    public PluginHelpGenerator setVelocityComponent(VelocityComponent velocityComponent) {
-        this.velocityComponent = velocityComponent;
+    /**
+     * Sets the engine used to evaluate the help class template. It replaces the Plexus {@code VelocityComponent},
+     * which the Maven 4 dependency injection cannot supply.
+     *
+     * @param velocityEngine the initialized Velocity engine
+     * @return this generator
+     */
+    public PluginHelpGenerator setVelocityEngine(VelocityEngine velocityEngine) {
+        this.velocityEngine = velocityEngine;
         return this;
     }
 
@@ -102,7 +109,7 @@ public class PluginHelpGenerator {
         return this;
     }
 
-    public PluginHelpGenerator setMavenProject(MavenProject mavenProject) {
+    public PluginHelpGenerator setMavenProject(Project mavenProject) {
         this.mavenProject = mavenProject;
         return this;
     }
@@ -128,7 +135,7 @@ public class PluginHelpGenerator {
                         .getResourceAsStream(useMaven4Api ? "help-class-source-v4.vm" : "help-class-source.vm"); //
                 InputStreamReader isReader = new InputStreamReader(is, UTF_8)) {
             // isReader =
-            velocityComponent.getEngine().evaluate(context, stringWriter, "", isReader);
+            velocityEngine.evaluate(context, stringWriter, "", isReader);
         }
         // Apply OS lineSeparator instead of template's lineSeparator to have consistent separators for
         // all source files.
@@ -144,7 +151,7 @@ public class PluginHelpGenerator {
                 : helpPackageName + '.' + HELP_MOJO_CLASS_NAME;
     }
 
-    static String getPluginHelpPath(MavenProject mavenProject) {
+    static String getPluginHelpPath(Project mavenProject) {
         return mavenProject.getGroupId() + "/" + mavenProject.getArtifactId() + "/plugin-help.xml";
     }
 }

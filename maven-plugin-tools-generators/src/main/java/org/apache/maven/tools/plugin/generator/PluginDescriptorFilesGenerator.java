@@ -29,11 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.maven.api.Project;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.Parameter;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.plugin.descriptor.Requirement;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.ExtendedMojoDescriptor;
 import org.apache.maven.tools.plugin.PluginDescriptorHelper;
 import org.apache.maven.tools.plugin.PluginToolsRequest;
@@ -79,7 +79,7 @@ public class PluginDescriptorFilesGenerator implements Generator {
             writeDescriptor(f, request, DescriptorType.STANDARD);
 
             // write plugin-help.xml help-descriptor (containing only a limited set of attributes)
-            MavenProject mavenProject = request.getProject();
+            Project mavenProject = request.getProject();
             f = new File(destinationDirectory, PluginHelpGenerator.getPluginHelpPath(mavenProject));
             writeDescriptor(f, request, DescriptorType.LIMITED_FOR_HELP_MOJO);
 
@@ -91,7 +91,7 @@ public class PluginDescriptorFilesGenerator implements Generator {
         }
     }
 
-    public static File getEnhancedDescriptorFilePath(MavenProject project) {
+    public static File getEnhancedDescriptorFilePath(Project project) {
         return new File(project.getBuild().getDirectory(), "plugin-enhanced.xml");
     }
 

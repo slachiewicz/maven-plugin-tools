@@ -28,13 +28,14 @@ import java.util.Map;
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.extractor.annotations.AbstractFooMojo;
 import org.apache.maven.tools.plugin.extractor.annotations.DeprecatedMojo;
 import org.apache.maven.tools.plugin.extractor.annotations.FooMojo;
 import org.apache.maven.tools.plugin.extractor.annotations.ParametersWithGenericsMojo;
 import org.apache.maven.tools.plugin.extractor.annotations.datamodel.ComponentAnnotationContent;
 import org.apache.maven.tools.plugin.extractor.annotations.datamodel.ParameterAnnotationContent;
+import org.apache.maven.tools.plugin.test.ApiTestSupport;
+import org.apache.maven.tools.plugin.test.ApiTestSupport.TestProject;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -137,7 +138,10 @@ class DefaultMojoAnnotationsScannerTest {
         MojoAnnotationsScannerRequest request = new MojoAnnotationsScannerRequest();
         request.setClassesDirectories(Collections.singletonList(new File("target/test-classes")));
         request.setIncludePatterns(Arrays.asList("**/FooMojo.class"));
-        request.setProject(new MavenProject());
+        TestProject project = ApiTestSupport.project(
+                "groupId", "artifactId", "1.0.0", new File(".").toPath(), new File("target/test-classes").toPath());
+        request.setSession(ApiTestSupport.session(project));
+        request.setProject(project);
 
         Map<String, MojoAnnotatedClass> mojoAnnotatedClasses = scanner.scan(request);
 

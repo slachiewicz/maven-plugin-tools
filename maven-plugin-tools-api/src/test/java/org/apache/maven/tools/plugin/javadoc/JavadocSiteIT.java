@@ -26,7 +26,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.stream.Stream;
 
-import org.apache.maven.settings.Settings;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.tools.plugin.javadoc.FullyQualifiedJavadocReference.MemberType;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;

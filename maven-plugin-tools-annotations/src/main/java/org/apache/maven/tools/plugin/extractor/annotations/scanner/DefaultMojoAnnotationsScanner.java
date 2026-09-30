@@ -18,14 +18,12 @@
  */
 package org.apache.maven.tools.plugin.extractor.annotations.scanner;
 
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,11 +31,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Execute;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -96,12 +97,18 @@ public class DefaultMojoAnnotationsScanner implements MojoAnnotationsScanner {
         try {
             String mavenApiVersion = null;
             for (Artifact dependency : request.getDependencies()) {
-                scan(mojoAnnotatedClasses, dependency.getFile(), request.getIncludePatterns(), dependency, true);
+                Optional<Path> dependencyPath = request.getSession().getArtifactPath(dependency);
+                scan(
+                        mojoAnnotatedClasses,
+                        dependencyPath.map(Path::toFile).orElse(null),
+                        request.getIncludePatterns(),
+                        dependency,
+                        true);
                 if (request.getMavenApiVersion() == null
                         && dependency.getGroupId().equals("org.apache.maven")
                         && (dependency.getArtifactId().equals("maven-plugin-api")
                                 || dependency.getArtifactId().equals("maven-api-core"))) {
-                    String version = dependency.getVersion();
+                    String version = dependency.getVersion().toString();
                     if (mavenApiVersion != null && !Objects.equals(version, mavenApiVersion)) {
                         throw new UnsupportedOperationException("Mixing Maven 3 and Maven 4 plugins is not supported."
                                 + " Fix your dependencies so that you depend either on maven-plugin-api for a Maven 3 plugin,"
@@ -117,7 +124,7 @@ public class DefaultMojoAnnotationsScanner implements MojoAnnotationsScanner {
                         mojoAnnotatedClasses,
                         classDirectory,
                         request.getIncludePatterns(),
-                        request.getProject().getArtifact(),
+                        request.getProject().getPomArtifact(),
                         false);
             }
         } catch (IOException e) {
