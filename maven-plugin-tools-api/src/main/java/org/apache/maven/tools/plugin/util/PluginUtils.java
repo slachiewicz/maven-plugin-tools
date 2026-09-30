@@ -18,18 +18,22 @@
  */
 package org.apache.maven.tools.plugin.util;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
-import org.apache.maven.artifact.DependencyResolutionRequiredException;
+import org.apache.maven.api.PathScope;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ProjectScope;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.services.ProjectManager;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.Parameter;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.reporting.MavenReport;
 import org.codehaus.plexus.util.DirectoryScanner;
 import org.codehaus.plexus.util.FileUtils;
@@ -103,33 +107,34 @@ public final class PluginUtils {
 
     /**
      * @param mojoClassName a fully qualified Mojo implementation class name, not null
-     * @param project a MavenProject instance, could be null
+     * @param session the current session, used to resolve the compile classpath of the project, could be null
+     *                if the project is also null
+     * @param project a Project instance, could be null
      * @return <code>true</code> if the Mojo class implements <code>MavenReport</code>,
      * <code>false</code> otherwise.
      * @throws IllegalArgumentException if any
-     * @since 3.10.0
+     * @since 5.0.0
      */
-    public static boolean isMavenReport(String mojoClassName, MavenProject project) throws IllegalArgumentException {
+    public static boolean isMavenReport(String mojoClassName, Session session, Project project)
+            throws IllegalArgumentException {
         if (mojoClassName == null) {
             throw new IllegalArgumentException("mojo implementation should be declared");
         }
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         if (project != null) {
-            List<String> classPathStrings;
-            try {
-                classPathStrings = project.getCompileClasspathElements();
-                if (project.getExecutionProject() != null) {
-                    classPathStrings.addAll(project.getExecutionProject().getCompileClasspathElements());
-                }
-            } catch (DependencyResolutionRequiredException e) {
-                throw new IllegalArgumentException(e);
+            List<Path> classPathEntries = new ArrayList<>();
+            addCompileClasspath(session, project, classPathEntries);
+            Optional<Project> executionProject =
+                    session.getService(ProjectManager.class).getExecutionProject(project);
+            if (executionProject.isPresent()) {
+                addCompileClasspath(session, executionProject.get(), classPathEntries);
             }
 
-            List<URL> urls = new ArrayList<>(classPathStrings.size());
-            for (String classPathString : classPathStrings) {
+            List<URL> urls = new ArrayList<>(classPathEntries.size());
+            for (Path classPathEntry : classPathEntries) {
                 try {
-                    urls.add(new File(classPathString).toURL());
+                    urls.add(classPathEntry.toUri().toURL());
                 } catch (MalformedURLException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -145,5 +150,13 @@ public final class PluginUtils {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+
+    private static void addCompileClasspath(Session session, Project project, List<Path> classPathEntries) {
+        Path outputDirectory = project.getOutputDirectory(ProjectScope.MAIN);
+        if (outputDirectory != null) {
+            classPathEntries.add(outputDirectory);
+        }
+        classPathEntries.addAll(session.resolveDependencies(project, PathScope.MAIN_COMPILE));
     }
 }

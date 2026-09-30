@@ -35,11 +35,10 @@ import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.Dependency;
+import org.apache.maven.api.DependencyScope;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.tools.plugin.util.PluginUtils;
 import org.codehaus.plexus.component.repository.ComponentDependency;
 import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.XMLWriter;
@@ -98,23 +97,23 @@ public final class GeneratorUtils {
     }
 
     /**
-     * @param artifacts not null collection of <code>Artifact</code>
+     * @param dependencies not null collection of <code>Dependency</code>, the v4 artifact which carries a scope
      * @return list of component dependencies, without in provided scope
      */
-    public static List<ComponentDependency> toComponentDependencies(Collection<Artifact> artifacts) {
+    public static List<ComponentDependency> toComponentDependencies(Collection<Dependency> dependencies) {
         List<ComponentDependency> componentDeps = new LinkedList<>();
 
-        for (Artifact artifact : artifacts) {
-            if (Artifact.SCOPE_PROVIDED.equals(artifact.getScope())) {
+        for (Dependency dependency : dependencies) {
+            if (DependencyScope.PROVIDED == dependency.getScope()) {
                 continue;
             }
 
             ComponentDependency cd = new ComponentDependency();
 
-            cd.setArtifactId(artifact.getArtifactId());
-            cd.setGroupId(artifact.getGroupId());
-            cd.setVersion(artifact.getVersion());
-            cd.setType(artifact.getType());
+            cd.setArtifactId(dependency.getArtifactId());
+            cd.setGroupId(dependency.getGroupId());
+            cd.setVersion(dependency.getVersion().toString());
+            cd.setType(dependency.getType().id());
 
             componentDeps.add(cd);
         }
@@ -503,18 +502,5 @@ public final class GeneratorUtils {
         }
 
         return packageName;
-    }
-
-    /**
-     * @param impl a Mojo implementation, not null
-     * @param project a MavenProject instance, could be null
-     * @return <code>true</code> is the Mojo implementation implements <code>MavenReport</code>,
-     * <code>false</code> otherwise.
-     * @throws IllegalArgumentException if any
-     * @deprecated Use {@link PluginUtils#isMavenReport(String, MavenProject)} instead.
-     */
-    @Deprecated
-    public static boolean isMavenReport(String impl, MavenProject project) throws IllegalArgumentException {
-        return PluginUtils.isMavenReport(impl, project);
     }
 }

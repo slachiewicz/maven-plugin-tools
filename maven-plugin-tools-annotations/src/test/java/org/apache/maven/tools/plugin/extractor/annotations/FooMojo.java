@@ -20,7 +20,7 @@ package org.apache.maven.tools.plugin.extractor.annotations;
 
 import java.util.List;
 
-import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Execute;
@@ -99,8 +99,8 @@ public class FooMojo extends AbstractFooMojo {
     /**
      *
      */
-    @Component(role = ArtifactMetadataSource.class, hint = "maven")
-    protected ArtifactMetadataSource artifactMetadataSource;
+    @Component(role = ArtifactRepository.class, hint = "default")
+    protected ArtifactRepository artifactRepository;
 
     @Override
     public void execute() throws MojoExecutionException {

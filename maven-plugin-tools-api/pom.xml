@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.maven.plugin-tools</groupId>
     <artifactId>maven-plugin-tools</artifactId>
-    <version>4.0.0-beta-4-SNAPSHOT</version>
+    <version>5.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>maven-plugin-tools-api</artifactId>
@@ -32,18 +32,33 @@
   <description>The Maven Plugin Tools Extractor API provides an API to extract descriptor information from Maven Plugins.</description>
 
   <dependencies>
-    <!-- maven -->
+    <!-- Maven 4 API -->
     <dependency>
       <groupId>org.apache.maven</groupId>
-      <artifactId>maven-core</artifactId>
+      <artifactId>maven-api-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-api-di</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-api-model</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-api-settings</artifactId>
+    </dependency>
+    <!-- descriptor model (PluginDescriptor, MojoDescriptor, Parameter): the Maven 4 descriptor has no home
+         for threadSafe, instantiationStrategy, executionStrategy, requiresReports, composer or
+         component requirements, which the Maven 3 plugin.xml still needs -->
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-plugin-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-model</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-plugin-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.maven</groupId>
@@ -56,20 +71,6 @@
     <dependency>
       <groupId>org.apache.maven.reporting</groupId>
       <artifactId>maven-reporting-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven</groupId>
-      <artifactId>maven-settings</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.maven.resolver</groupId>
-      <artifactId>maven-resolver-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
@@ -116,14 +117,19 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.maven.reporting</groupId>
-      <artifactId>maven-reporting-impl</artifactId>
+      <!-- used by the descriptor model at runtime, provided by Maven -->
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-xml</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.maven.plugin-testing</groupId>
-      <artifactId>maven-plugin-testing-harness</artifactId>
-      <version>${pluginTestingHarnessVersion}</version>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-impl</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-di</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -144,10 +150,16 @@
       </plugins>
     </pluginManagement>
     <plugins>
-
       <plugin>
-        <groupId>org.eclipse.sisu</groupId>
-        <artifactId>sisu-maven-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

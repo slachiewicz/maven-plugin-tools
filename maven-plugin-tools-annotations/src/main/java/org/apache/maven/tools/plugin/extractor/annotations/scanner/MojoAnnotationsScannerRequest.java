@@ -25,8 +25,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
 
 /**
  * @author Olivier Lamy
@@ -41,7 +42,9 @@ public class MojoAnnotationsScannerRequest {
 
     private List<File> sourceDirectories = new ArrayList<>();
 
-    private MavenProject project;
+    private Session session;
+
+    private Project project;
 
     private String mavenApiVersion;
 
@@ -81,11 +84,22 @@ public class MojoAnnotationsScannerRequest {
         this.sourceDirectories = sourceDirectories;
     }
 
-    public MavenProject getProject() {
+    /**
+     * @return the session used to look up the files of the {@link #getDependencies() dependencies}
+     */
+    public Session getSession() {
+        return session;
+    }
+
+    public void setSession(Session session) {
+        this.session = session;
+    }
+
+    public Project getProject() {
         return project;
     }
 
-    public void setProject(MavenProject project) {
+    public void setProject(Project project) {
         this.project = project;
     }
 

@@ -18,12 +18,11 @@
  */
 package org.apache.maven.tools.plugin.extractor.annotations.converter;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.Map;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.tools.plugin.extractor.annotations.converter.tag.block.JavadocBlockTagToHtmlConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

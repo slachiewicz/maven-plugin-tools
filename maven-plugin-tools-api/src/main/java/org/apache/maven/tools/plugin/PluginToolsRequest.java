@@ -24,11 +24,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.maven.artifact.Artifact;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
-import org.apache.maven.settings.Settings;
-import org.eclipse.aether.RepositorySystemSession;
 
 /**
  * Request that encapsulates all information relevant to the process of extracting
@@ -41,16 +41,29 @@ import org.eclipse.aether.RepositorySystemSession;
 public interface PluginToolsRequest {
 
     /**
-     * @return Return the current {@link MavenProject} instance in use.
+     * @return Return the current {@link Session}, used to resolve artifacts, parse versions and reach the
+     * project services.
      */
-    MavenProject getProject();
+    Session getSession();
 
     /**
-     * @param project the current {@link MavenProject}
+     * @param session the current {@link Session}
+     * @see PluginToolsRequest#getSession()
+     * @return This request.
+     */
+    PluginToolsRequest setSession(Session session);
+
+    /**
+     * @return Return the current {@link Project} instance in use.
+     */
+    Project getProject();
+
+    /**
+     * @param project the current {@link Project}
      * @see PluginToolsRequest#getProject()
      * @return This request.
      */
-    PluginToolsRequest setProject(MavenProject project);
+    PluginToolsRequest setProject(Project project);
 
     /**
      * @return Return the {@link PluginDescriptor} currently being populated as part of the build of the
@@ -98,7 +111,8 @@ public interface PluginToolsRequest {
     boolean isSkipErrorNoDescriptorsFound();
 
     /**
-     * Returns the list of {@link Artifact} used in class path scanning for annotations
+     * Returns the list of {@link Artifact} used in class path scanning for annotations. The artifacts must be
+     * resolved, so that {@link Session#getArtifactPath(Artifact)} returns their file.
      *
      * @return the dependencies
      * @since 3.0
@@ -111,22 +125,6 @@ public interface PluginToolsRequest {
      * @since 3.0
      */
     PluginToolsRequest setDependencies(Set<Artifact> dependencies);
-
-    /**
-     * Return a Repository Session
-     *
-     * @return a Repository Session
-     * @since 3.8.2
-     */
-    RepositorySystemSession getRepoSession();
-
-    /**
-     * Set a Repository Session
-     *
-     * @param repoSession a Repository Session
-     * @since 3.8.2
-     */
-    void setRepoSession(RepositorySystemSession repoSession);
 
     /**
      * @param baseUrl may be relative to the current site's root
@@ -177,7 +175,7 @@ public interface PluginToolsRequest {
     PluginToolsRequest setSettings(Settings settings);
 
     /**
-     * @return the Maven settings
+     * @return the Maven settings, defaulting to the ones of the {@link #getSession() session} if none were set
      * @since 3.7.0
      */
     Settings getSettings();
@@ -185,7 +183,7 @@ public interface PluginToolsRequest {
     /**
      *
      * @param requiredJavaVersion the required Java version for this plugin or {@code null} if unknown.
-     *  Must be a value according to semantics of {@link org.eclipse.aether.version.VersionConstraint}.
+     *  Must be a value according to semantics of {@link org.apache.maven.api.VersionConstraint}.
      * @return This request.
      * @since 3.8.0
      */
@@ -194,7 +192,7 @@ public interface PluginToolsRequest {
     /**
      *
      * @return the required Java version for this plugin or {@code null} if unknown.
-     *  Is a value according to semantics of {@link org.eclipse.aether.version.VersionConstraint}.
+     *  Is a value according to semantics of {@link org.apache.maven.api.VersionConstraint}.
      * @since 3.8.0
      */
     String getRequiredJavaVersion();

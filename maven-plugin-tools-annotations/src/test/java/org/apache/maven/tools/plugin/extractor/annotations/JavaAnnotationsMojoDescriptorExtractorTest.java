@@ -28,16 +28,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.javaparser.ast.body.TypeDeclaration;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.DefaultArtifact;
+import org.apache.maven.api.Session;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.descriptor.InvalidPluginDescriptorException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.DefaultPluginToolsRequest;
 import org.apache.maven.tools.plugin.extractor.ExtractionException;
 import org.apache.maven.tools.plugin.extractor.annotations.scanner.DefaultMojoAnnotationsScanner;
+import org.apache.maven.tools.plugin.test.ApiTestSupport;
+import org.apache.maven.tools.plugin.test.ApiTestSupport.TestProject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -58,12 +58,10 @@ class JavaAnnotationsMojoDescriptorExtractorTest {
         JavaAnnotationsMojoDescriptorExtractor mojoDescriptorExtractor = new JavaAnnotationsMojoDescriptorExtractor();
         mojoDescriptorExtractor.mojoAnnotationsScanner = new DefaultMojoAnnotationsScanner();
         PluginDescriptor pluginDescriptor = new PluginDescriptor();
-        MavenProject mavenProject = new MavenProject();
-        Artifact artifact = new DefaultArtifact("groupId", "artifactId", "1.0.0", null, "jar", "classifier", null);
-        mavenProject.setArtifact(artifact);
-        mavenProject.getBuild().setOutputDirectory(targetDir.toString());
+        TestProject project = ApiTestSupport.project("groupId", "artifactId", "1.0.0", targetDir, targetDir);
+        Session session = ApiTestSupport.session(project);
         List<MojoDescriptor> mojoDescriptors =
-                mojoDescriptorExtractor.execute(new DefaultPluginToolsRequest(mavenProject, pluginDescriptor));
+                mojoDescriptorExtractor.execute(new DefaultPluginToolsRequest(session, project, pluginDescriptor));
         assertEquals(1, mojoDescriptors.size());
         // there should be only one mojo contained in the one class
         return mojoDescriptors.get(0);

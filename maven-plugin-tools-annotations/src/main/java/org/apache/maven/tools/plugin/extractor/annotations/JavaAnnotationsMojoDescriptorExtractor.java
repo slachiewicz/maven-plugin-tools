@@ -18,19 +18,21 @@
  */
 package org.apache.maven.tools.plugin.extractor.annotations;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +43,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -52,14 +56,24 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.javadoc.Javadoc;
 import com.github.javaparser.javadoc.JavadocBlockTag;
 import com.github.javaparser.resolution.UnsolvedSymbolException;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.apache.maven.api.Artifact;
+import org.apache.maven.api.DownloadedArtifact;
+import org.apache.maven.api.Language;
+import org.apache.maven.api.PathScope;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ProjectScope;
+import org.apache.maven.api.RemoteRepository;
+import org.apache.maven.api.Session;
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
+import org.apache.maven.api.services.ArtifactResolverException;
+import org.apache.maven.api.services.ProjectManager;
 import org.apache.maven.plugin.descriptor.InvalidParameterException;
 import org.apache.maven.plugin.descriptor.InvalidPluginDescriptorException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
 import org.apache.maven.plugin.descriptor.Requirement;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.ExtendedMojoDescriptor;
 import org.apache.maven.tools.plugin.PluginToolsRequest;
 import org.apache.maven.tools.plugin.extractor.ExtractionException;
@@ -78,16 +92,7 @@ import org.apache.maven.tools.plugin.extractor.annotations.scanner.MojoAnnotated
 import org.apache.maven.tools.plugin.extractor.annotations.scanner.MojoAnnotationsScanner;
 import org.apache.maven.tools.plugin.extractor.annotations.scanner.MojoAnnotationsScannerRequest;
 import org.apache.maven.tools.plugin.javadoc.JavadocLinkGenerator;
-import org.codehaus.plexus.archiver.ArchiverException;
-import org.codehaus.plexus.archiver.UnArchiver;
-import org.codehaus.plexus.archiver.manager.ArchiverManager;
-import org.codehaus.plexus.archiver.manager.NoSuchArchiverException;
 import org.codehaus.plexus.util.StringUtils;
-import org.eclipse.aether.RepositorySystem;
-import org.eclipse.aether.artifact.DefaultArtifact;
-import org.eclipse.aether.resolution.ArtifactRequest;
-import org.eclipse.aether.resolution.ArtifactResolutionException;
-import org.eclipse.aether.resolution.ArtifactResult;
 import org.objectweb.asm.Opcodes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,12 +152,6 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
     MojoAnnotationsScanner mojoAnnotationsScanner;
 
     @Inject
-    private RepositorySystem repositorySystem;
-
-    @Inject
-    private ArchiverManager archiverManager;
-
-    @Inject
     private JavadocInlineTagsToXhtmlConverter javadocInlineTagsToHtmlConverter;
 
     @Inject
@@ -203,8 +202,9 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
         if (maxClassVersion.isPresent()) {
             String requiredJavaVersion = CLASS_VERSION_TO_JAVA_STRING.get(maxClassVersion.get());
             if (StringUtils.isBlank(request.getRequiredJavaVersion())
-                    || new ComparableVersion(request.getRequiredJavaVersion())
-                                    .compareTo(new ComparableVersion(requiredJavaVersion))
+                    || request.getSession()
+                                    .parseVersion(request.getRequiredJavaVersion())
+                                    .compareTo(request.getSession().parseVersion(requiredJavaVersion))
                             < 0) {
                 request.setRequiredJavaVersion(requiredJavaVersion);
             }
@@ -239,9 +239,10 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
     private Map<String, MojoAnnotatedClass> scanAnnotations(PluginToolsRequest request) throws ExtractionException {
         MojoAnnotationsScannerRequest mojoAnnotationsScannerRequest = new MojoAnnotationsScannerRequest();
 
-        File output = new File(request.getProject().getBuild().getOutputDirectory());
+        File output = request.getProject().getOutputDirectory(ProjectScope.MAIN).toFile();
         mojoAnnotationsScannerRequest.setClassesDirectories(Arrays.asList(output));
 
+        mojoAnnotationsScannerRequest.setSession(request.getSession());
         mojoAnnotationsScannerRequest.setDependencies(request.getDependencies());
 
         mojoAnnotationsScannerRequest.setProject(request.getProject());
@@ -255,7 +256,7 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
             throws ExtractionException, IOException {
         // found artifact from reactors to scan sources
         // we currently only scan sources from reactors
-        List<MavenProject> mavenProjects = new ArrayList<>();
+        List<Project> mavenProjects = new ArrayList<>();
 
         // if we need to scan sources from external artifacts
         Set<Artifact> externalArtifacts = new HashSet<>();
@@ -268,7 +269,7 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
         for (MojoAnnotatedClass mojoAnnotatedClass : mojoAnnotatedClasses) {
             if (Objects.equals(
                     mojoAnnotatedClass.getArtifact().getArtifactId(),
-                    request.getProject().getArtifact().getArtifactId())) {
+                    request.getProject().getArtifactId())) {
                 continue;
             }
 
@@ -277,8 +278,7 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
                 continue;
             }
 
-            MavenProject mavenProject =
-                    getFromProjectReferences(mojoAnnotatedClass.getArtifact(), request.getProject());
+            Project mavenProject = getFromProjectReferences(request.getSession(), mojoAnnotatedClass.getArtifact());
 
             if (mavenProject != null) {
                 mavenProjects.add(mavenProject);
@@ -297,7 +297,7 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
             }
         }
 
-        for (MavenProject mavenProject : mavenProjects) {
+        for (Project mavenProject : mavenProjects) {
             extendJavaSourceModel(request, sourceModel, mavenProject);
         }
 
@@ -525,64 +525,98 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
     protected void extendJavaSourceModelWithSourcesJar(
             JavaSourceModel sourceModel, Artifact artifact, PluginToolsRequest request, String classifier)
             throws ExtractionException, IOException {
+        Session session = request.getSession();
+        Artifact sourcesArtifact = session.createArtifact(
+                artifact.getGroupId(),
+                artifact.getArtifactId(),
+                artifact.getVersion().toString(),
+                classifier,
+                artifact.getExtension(),
+                null);
+
+        List<RemoteRepository> remoteRepositories =
+                session.getService(ProjectManager.class).getRemoteProjectRepositories(request.getProject());
+        Path sourcesPath;
         try {
-            org.eclipse.aether.artifact.Artifact sourcesArtifact = new DefaultArtifact(
-                    artifact.getGroupId(),
-                    artifact.getArtifactId(),
-                    classifier,
-                    artifact.getArtifactHandler().getExtension(),
-                    artifact.getVersion());
-
-            ArtifactRequest resolveRequest =
-                    new ArtifactRequest(sourcesArtifact, request.getProject().getRemoteProjectRepositories(), null);
-            try {
-                ArtifactResult result = repositorySystem.resolveArtifact(request.getRepoSession(), resolveRequest);
-                sourcesArtifact = result.getArtifact();
-            } catch (ArtifactResolutionException e) {
-                String message = "Unable to get sources artifact for " + artifact.getId()
-                        + ". Some javadoc tags (@since, @deprecated and comments) won't be used";
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.warn(message, e);
-                } else {
-                    LOGGER.warn(message);
-                }
-                return;
+            DownloadedArtifact result = session.resolveArtifact(sourcesArtifact, remoteRepositories);
+            sourcesPath = result.getPath();
+        } catch (ArtifactResolverException e) {
+            String message = "Unable to get sources artifact for " + artifact.key()
+                    + ". Some javadoc tags (@since, @deprecated and comments) won't be used";
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.warn(message, e);
+            } else {
+                LOGGER.warn(message);
             }
+            return;
+        }
 
-            if (sourcesArtifact.getFile() == null || !sourcesArtifact.getFile().exists()) {
-                // could not get artifact sources
-                return;
-            }
+        if (sourcesPath == null || !Files.exists(sourcesPath)) {
+            // could not get artifact sources
+            return;
+        }
 
-            if (sourcesArtifact.getFile().isFile()) {
-                // extract sources to target/maven-plugin-plugin-sources/${groupId}/${artifact}/sources
-                File extractDirectory = new File(
-                        request.getProject().getBuild().getDirectory(),
-                        "maven-plugin-plugin-sources/" + sourcesArtifact.getGroupId() + "/"
-                                + sourcesArtifact.getArtifactId() + "/" + sourcesArtifact.getVersion()
-                                + "/" + sourcesArtifact.getClassifier());
-                extractDirectory.mkdirs();
+        if (Files.isRegularFile(sourcesPath)) {
+            // extract sources to target/maven-plugin-plugin-sources/${groupId}/${artifact}/sources
+            Path extractDirectory = Paths.get(request.getProject().getBuild().getDirectory())
+                    .resolve("maven-plugin-plugin-sources")
+                    .resolve(sourcesArtifact.getGroupId())
+                    .resolve(sourcesArtifact.getArtifactId())
+                    .resolve(sourcesArtifact.getVersion().toString())
+                    .resolve(sourcesArtifact.getClassifier());
+            Files.createDirectories(extractDirectory);
 
-                UnArchiver unArchiver = archiverManager.getUnArchiver("jar");
-                unArchiver.setSourceFile(sourcesArtifact.getFile());
-                unArchiver.setDestDirectory(extractDirectory);
-                unArchiver.extract();
+            unzip(sourcesPath, extractDirectory);
 
-                extendJavaSourceModel(sourceModel, Arrays.asList(extractDirectory), request.getDependencies());
-            } else if (sourcesArtifact.getFile().isDirectory()) {
-                extendJavaSourceModel(sourceModel, Arrays.asList(sourcesArtifact.getFile()), request.getDependencies());
-            }
-        } catch (ArchiverException | NoSuchArchiverException e) {
-            throw new ExtractionException(e.getMessage(), e);
+            extendJavaSourceModel(
+                    request.getSession(),
+                    sourceModel,
+                    Arrays.asList(extractDirectory.toFile()),
+                    request.getDependencies());
+        } else if (Files.isDirectory(sourcesPath)) {
+            extendJavaSourceModel(
+                    request.getSession(), sourceModel, Arrays.asList(sourcesPath.toFile()), request.getDependencies());
         }
     }
 
-    private void extendJavaSourceModel(
-            PluginToolsRequest request, JavaSourceModel sourceModel, final MavenProject project) throws IOException {
+    /**
+     * Extracts a sources jar. The Maven 4 API has no archiver abstraction and {@code plexus-archiver} is a Plexus
+     * component the Maven 4 dependency injection cannot supply, so this uses the JDK.
+     */
+    private static void unzip(Path archive, Path targetDirectory) throws ExtractionException, IOException {
+        Path normalizedTarget = targetDirectory.toAbsolutePath().normalize();
+        try (ZipFile zipFile = new ZipFile(archive.toFile())) {
+            for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements(); ) {
+                ZipEntry entry = entries.nextElement();
+                Path entryTarget = normalizedTarget.resolve(entry.getName()).normalize();
+                if (!entryTarget.startsWith(normalizedTarget)) {
+                    throw new ExtractionException("Sources archive " + archive + " contains an entry outside of the "
+                            + "extraction directory: " + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryTarget);
+                } else {
+                    Files.createDirectories(entryTarget.getParent());
+                    try (InputStream in = zipFile.getInputStream(entry)) {
+                        Files.copy(in, entryTarget, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+        }
+    }
+
+    private void extendJavaSourceModel(PluginToolsRequest request, JavaSourceModel sourceModel, final Project project)
+            throws IOException {
+        Session session = request.getSession();
+        ProjectManager projectManager = session.getService(ProjectManager.class);
         List<File> sources = new ArrayList<>();
 
-        for (String source : project.getCompileSourceRoots()) {
-            File sourceFile = new File(source);
+        List<Path> compileSourceRoots = projectManager
+                .getEnabledSourceRoots(project, ProjectScope.MAIN, Language.JAVA_FAMILY)
+                .map(sourceRoot -> sourceRoot.directory())
+                .collect(Collectors.toList());
+        for (Path source : compileSourceRoots) {
+            File sourceFile = source.toFile();
 
             // Allow users to exclude certain paths such as generated sources from being scanned, in the case that
             // this may be problematic for them (e.g. using obscure unsupported syntax by the parser, comments that
@@ -593,18 +627,28 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
         }
 
         // TODO be more dynamic
-        File generatedPlugin = new File(project.getBasedir(), "target/generated-sources/plugin");
-        if (!project.getCompileSourceRoots().contains(generatedPlugin.getAbsolutePath()) && generatedPlugin.exists()) {
-            sources.add(generatedPlugin);
+        Path generatedPlugin = project.getBasedir().resolve("target/generated-sources/plugin");
+        if (!compileSourceRoots.contains(generatedPlugin) && Files.exists(generatedPlugin)) {
+            sources.add(generatedPlugin.toFile());
         }
 
-        extendJavaSourceModel(sourceModel, sources, project.getArtifacts());
+        // the classpath of the project, the Maven 3 MavenProject#getArtifacts() had no equivalent on the v4 Project
+        for (Path classPathEntry : session.resolveDependencies(project, PathScope.MAIN_COMPILE)) {
+            sourceModel.addClassPathEntry(classPathEntry.toFile());
+        }
+        for (File source : sources) {
+            sourceModel.addSourceDirectory(source);
+        }
     }
 
     private void extendJavaSourceModel(
-            JavaSourceModel sourceModel, List<File> sourceDirectories, Set<Artifact> artifacts) throws IOException {
+            Session session, JavaSourceModel sourceModel, List<File> sourceDirectories, Set<Artifact> artifacts)
+            throws IOException {
         for (Artifact artifact : artifacts) {
-            sourceModel.addClassPathEntry(artifact.getFile());
+            Optional<Path> path = session.getArtifactPath(artifact);
+            if (path.isPresent()) {
+                sourceModel.addClassPathEntry(path.get().toFile());
+            }
         }
         for (File source : sourceDirectories) {
             sourceModel.addSourceDirectory(source);
@@ -882,15 +926,20 @@ public class JavaAnnotationsMojoDescriptorExtractor implements MojoDescriptorExt
         return componentAnnotationContents;
     }
 
-    protected MavenProject getFromProjectReferences(Artifact artifact, MavenProject project) {
-        if (project.getProjectReferences() == null
-                || project.getProjectReferences().isEmpty()) {
+    /**
+     * Looks up the reactor project which produces the artifact. The Maven 3 {@code MavenProject#getProjectReferences()}
+     * has no equivalent on the v4 {@link Project}, so this searches {@link Session#getProjects()}.
+     */
+    protected Project getFromProjectReferences(Session session, Artifact artifact) {
+        if (session == null || StringUtils.isNotEmpty(artifact.getClassifier())) {
             return null;
         }
-        Collection<MavenProject> mavenProjects = project.getProjectReferences().values();
-        for (MavenProject mavenProject : mavenProjects) {
-            if (Objects.equals(mavenProject.getId(), artifact.getId())) {
-                return mavenProject;
+        for (Project reactorProject : session.getProjects()) {
+            if (Objects.equals(reactorProject.getGroupId(), artifact.getGroupId())
+                    && Objects.equals(reactorProject.getArtifactId(), artifact.getArtifactId())
+                    && Objects.equals(
+                            reactorProject.getVersion(), artifact.getVersion().toString())) {
+                return reactorProject;
             }
         }
         return null;

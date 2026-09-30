@@ -18,14 +18,13 @@
  */
 package org.apache.maven.tools.plugin.extractor.annotations.converter;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.maven.api.di.Inject;
+import org.apache.maven.api.di.Named;
+import org.apache.maven.api.di.Singleton;
 import org.apache.maven.tools.plugin.extractor.annotations.converter.tag.JavadocTagToHtmlConverter;
 import org.apache.maven.tools.plugin.extractor.annotations.converter.tag.inline.JavadocInlineTagToHtmlConverter;
 import org.jsoup.Jsoup;

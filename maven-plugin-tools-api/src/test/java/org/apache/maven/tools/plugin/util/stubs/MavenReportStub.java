@@ -18,18 +18,32 @@
  */
 package org.apache.maven.tools.plugin.util.stubs;
 
+import java.io.File;
 import java.util.Locale;
 
-import org.apache.maven.reporting.AbstractMavenReport;
+import org.apache.maven.doxia.sink.Sink;
+import org.apache.maven.reporting.MavenReport;
 import org.apache.maven.reporting.MavenReportException;
 
 /**
  * Dummy report.
  */
-public class MavenReportStub extends AbstractMavenReport {
+public class MavenReportStub implements MavenReport {
     /** {@inheritDoc} */
     @Override
-    protected void executeReport(Locale locale) throws MavenReportException {}
+    public void generate(Sink sink, Locale locale) throws MavenReportException {}
+
+    /** {@inheritDoc} */
+    @Override
+    public String getOutputName() {
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getCategoryName() {
+        return null;
+    }
 
     /** {@inheritDoc} */
     @Override
@@ -45,7 +59,23 @@ public class MavenReportStub extends AbstractMavenReport {
 
     /** {@inheritDoc} */
     @Override
-    public String getOutputName() {
+    public void setReportOutputDirectory(File outputDirectory) {}
+
+    /** {@inheritDoc} */
+    @Override
+    public File getReportOutputDirectory() {
         return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isExternalReport() {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean canGenerateReport() {
+        return true;
     }
 }

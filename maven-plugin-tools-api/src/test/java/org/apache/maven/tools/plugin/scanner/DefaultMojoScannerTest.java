@@ -18,7 +18,6 @@
  */
 package org.apache.maven.tools.plugin.scanner;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,12 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.maven.model.Build;
-import org.apache.maven.model.Model;
 import org.apache.maven.plugin.descriptor.InvalidPluginDescriptorException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.DefaultPluginToolsRequest;
 import org.apache.maven.tools.plugin.extractor.ExtractionException;
 import org.apache.maven.tools.plugin.extractor.MojoDescriptorExtractor;
@@ -50,13 +46,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class DefaultMojoScannerTest {
     private Map<String, MojoDescriptorExtractor> extractors;
 
-    private Build build;
-
-    private Model model;
-
     private MojoScanner scanner;
-
-    private MavenProject project;
 
     @BeforeEach
     void setUp() {
@@ -66,22 +56,13 @@ class DefaultMojoScannerTest {
         extractors.put("three", new ScannerTestExtractor("three"));
 
         scanner = new DefaultMojoScanner(extractors);
-
-        build = new Build();
-        build.setSourceDirectory("testdir");
-
-        model = new Model();
-        model.setBuild(build);
-
-        project = new MavenProject(model);
-        project.setFile(new File("."));
     }
 
     @Test
     void unspecifiedExtractors() throws Exception {
         PluginDescriptor pluginDescriptor = createPluginDescriptor();
 
-        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(project, pluginDescriptor));
+        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(null, null, pluginDescriptor));
 
         checkResult(pluginDescriptor, extractors.keySet());
     }
@@ -97,7 +78,7 @@ class DefaultMojoScannerTest {
         PluginDescriptor pluginDescriptor = createPluginDescriptor();
 
         scanner.setActiveExtractors(activeExtractors);
-        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(project, pluginDescriptor));
+        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(null, null, pluginDescriptor));
 
         checkResult(pluginDescriptor, Arrays.asList("one", "three"));
     }
@@ -107,7 +88,7 @@ class DefaultMojoScannerTest {
         PluginDescriptor pluginDescriptor = createPluginDescriptor();
 
         scanner.setActiveExtractors(null);
-        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(project, pluginDescriptor));
+        scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(null, null, pluginDescriptor));
 
         checkResult(pluginDescriptor, extractors.keySet());
     }
@@ -118,7 +99,7 @@ class DefaultMojoScannerTest {
 
         scanner.setActiveExtractors(Collections.emptySet());
         try {
-            scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(project, pluginDescriptor));
+            scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(null, null, pluginDescriptor));
             fail("Expected exception");
         } catch (InvalidPluginDescriptorException e) {
             // Ok
@@ -137,7 +118,7 @@ class DefaultMojoScannerTest {
         scanner.setActiveExtractors(activeExtractors);
 
         try {
-            scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(project, pluginDescriptor));
+            scanner.populatePluginDescriptor(new DefaultPluginToolsRequest(null, null, pluginDescriptor));
             fail("No error for unknown extractor");
         } catch (ExtractionException e) {
             // Ok

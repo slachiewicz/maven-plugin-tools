@@ -65,8 +65,8 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
-import org.apache.maven.settings.Proxy;
-import org.apache.maven.settings.Settings;
+import org.apache.maven.api.settings.Proxy;
+import org.apache.maven.api.settings.Settings;
 import org.apache.maven.tools.plugin.javadoc.FullyQualifiedJavadocReference.MemberType;
 import org.codehaus.plexus.util.StringUtils;
 
@@ -503,9 +503,8 @@ class JavadocSite {
         // Some server reject requests that do not have an Accept header
         builder.setDefaultHeaders(Arrays.asList(new BasicHeader(HttpHeaders.ACCEPT, "*/*")));
 
-        if (settings != null && settings.getActiveProxy() != null) {
-            Proxy activeProxy = settings.getActiveProxy();
-
+        Proxy activeProxy = getActiveProxy(settings);
+        if (activeProxy != null) {
             if (StringUtils.isNotEmpty(activeProxy.getHost())
                     && (url == null || !isNonProxyHost(activeProxy.getNonProxyHosts(), url.getHost()))) {
                 HttpHost proxy = new HttpHost(activeProxy.getHost(), activeProxy.getPort());
@@ -522,6 +521,21 @@ class JavadocSite {
             }
         }
         return builder.build();
+    }
+
+    /**
+     * The v4 {@link Settings} has no equivalent of the Maven 3 {@code getActiveProxy()}.
+     *
+     * @return the first active proxy or {@code null} if there is none
+     */
+    private static Proxy getActiveProxy(Settings settings) {
+        if (settings == null) {
+            return null;
+        }
+        return settings.getProxies().stream()
+                .filter(Proxy::isActive)
+                .findFirst()
+                .orElse(null);
     }
 
     static BufferedReader getReader(URL url, Settings settings) throws IOException {

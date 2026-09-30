@@ -21,10 +21,11 @@ package org.apache.maven.tools.plugin.scanner;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.maven.api.Project;
+import org.apache.maven.api.Session;
 import org.apache.maven.plugin.descriptor.InvalidPluginDescriptorException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.DefaultPluginToolsRequest;
 import org.apache.maven.tools.plugin.PluginToolsRequest;
 import org.apache.maven.tools.plugin.extractor.ExtractionException;
@@ -58,9 +59,9 @@ public class ScannerTestExtractor implements MojoDescriptorExtractor {
         return GROUP_KEY;
     }
 
-    public List<MojoDescriptor> execute(MavenProject project, PluginDescriptor pluginDescriptor)
+    public List<MojoDescriptor> execute(Session session, Project project, PluginDescriptor pluginDescriptor)
             throws InvalidPluginDescriptorException, ExtractionException {
-        return execute(new DefaultPluginToolsRequest(project, pluginDescriptor));
+        return execute(new DefaultPluginToolsRequest(session, project, pluginDescriptor));
     }
 
     @Override

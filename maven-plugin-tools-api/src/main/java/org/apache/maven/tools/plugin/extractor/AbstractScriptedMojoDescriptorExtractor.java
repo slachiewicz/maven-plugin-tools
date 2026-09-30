@@ -25,10 +25,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
+import org.apache.maven.api.Language;
+import org.apache.maven.api.Project;
+import org.apache.maven.api.ProjectScope;
+import org.apache.maven.api.services.ProjectManager;
 import org.apache.maven.plugin.descriptor.InvalidPluginDescriptorException;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
-import org.apache.maven.project.MavenProject;
 import org.apache.maven.tools.plugin.PluginToolsRequest;
 import org.codehaus.plexus.util.DirectoryScanner;
 import org.codehaus.plexus.util.FileUtils;
@@ -56,17 +60,21 @@ public abstract class AbstractScriptedMojoDescriptorExtractor implements MojoDes
         String metadataExtension = getMetadataFileExtension(request);
         String scriptExtension = getScriptFileExtension(request);
 
-        MavenProject project = request.getProject();
+        Project project = request.getProject();
+        File basedir = project.getBasedir().toFile();
+        List<String> scriptSourceRoots = request.getSession()
+                .getService(ProjectManager.class)
+                .getEnabledSourceRoots(project, ProjectScope.MAIN, Language.SCRIPT)
+                .map(sourceRoot -> sourceRoot.directory().toString())
+                .collect(Collectors.toList());
 
-        @SuppressWarnings("unchecked")
         Map<String, Set<File>> scriptFilesKeyedByBasedir =
-                gatherFilesByBasedir(project.getBasedir(), project.getScriptSourceRoots(), scriptExtension, request);
+                gatherFilesByBasedir(basedir, scriptSourceRoots, scriptExtension, request);
 
         List<MojoDescriptor> mojoDescriptors;
         if (!(metadataExtension == null || metadataExtension.isEmpty())) {
-            @SuppressWarnings("unchecked")
-            Map<String, Set<File>> metadataFilesKeyedByBasedir = gatherFilesByBasedir(
-                    project.getBasedir(), project.getScriptSourceRoots(), metadataExtension, request);
+            Map<String, Set<File>> metadataFilesKeyedByBasedir =
+                    gatherFilesByBasedir(basedir, scriptSourceRoots, metadataExtension, request);
 
             mojoDescriptors = extractMojoDescriptorsFromMetadata(metadataFilesKeyedByBasedir, request);
         } else {
@@ -74,7 +82,9 @@ public abstract class AbstractScriptedMojoDescriptorExtractor implements MojoDes
         }
 
         copyScriptsToOutputDirectory(
-                scriptFilesKeyedByBasedir, project.getBuild().getOutputDirectory(), request);
+                scriptFilesKeyedByBasedir,
+                project.getOutputDirectory(ProjectScope.MAIN).toString(),
+                request);
 
         if (!mojoDescriptors.isEmpty()) {
             LOGGER.warn("Scripting support for mojos is deprecated and is planned to be removed in Maven 4.");
