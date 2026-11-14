@@ -173,11 +173,9 @@ class JavaAnnotationsMojoDescriptorExtractorTest {
         assertNotNull(compiler);
         assertEquals(0, compiler.run(null, null, null, arguments.toArray(new String[0])));
 
-        MavenProject mavenProject = new MavenProject();
-        mavenProject.setArtifact(
-                new DefaultArtifact("groupId", "artifactId", "1.0.0", null, "jar", "classifier", null));
-        mavenProject.getBuild().setOutputDirectory(classesDirectory.toString());
-        mavenProject.addCompileSourceRoot(sourceRoot.toString());
+        TestProject project = ApiTestSupport.project("groupId", "artifactId", "1.0.0", targetDir, classesDirectory);
+        project.getCompileSourceRoots().add(sourceRoot);
+        Session session = ApiTestSupport.session(project);
 
         JavaAnnotationsMojoDescriptorExtractor extractor = new JavaAnnotationsMojoDescriptorExtractor();
         extractor.mojoAnnotationsScanner = new DefaultMojoAnnotationsScanner();
@@ -188,7 +186,7 @@ class JavaAnnotationsMojoDescriptorExtractorTest {
                 "javadocBlockTagsToHtmlConverter",
                 new JavadocBlockTagsToXhtmlConverter(inlineConverter, new HashMap<>()));
         List<MojoDescriptor> mojoDescriptors =
-                extractor.execute(new DefaultPluginToolsRequest(mavenProject, new PluginDescriptor()));
+                extractor.execute(new DefaultPluginToolsRequest(session, project, new PluginDescriptor()));
         assertEquals(1, mojoDescriptors.size());
         return mojoDescriptors.get(0);
     }
